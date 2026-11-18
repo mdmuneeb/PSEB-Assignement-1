@@ -148,3 +148,24 @@ async def get_rates(
     )
 
     return handle_allrates_response(response, format)
+
+
+
+@router.get("/symbols")
+async def get_supported_currencies(
+    format: str = Query(
+        default="json",
+        pattern="^(json|csv|xml|xlsx)$",
+    ),
+):
+    params = {
+        "format": format,
+    }
+
+    response = await make_allrates_request(
+        endpoint="v1/symbols",
+        params=params,
+        authenticated=False,
+    )
+
+    return handle_allrates_response(response, format)

@@ -1,8 +1,7 @@
 
 import httpx
-
 from fastapi import HTTPException
-
+from fastapi.responses import JSONResponse, Response
 from app.config import ALLRATES_API_KEY, ALLRATES_BASE_URL
 
 
@@ -10,22 +9,21 @@ async def make_allrates_request(
     endpoint: str,
     params: dict,
     timeout: float = 30.0,
+    authenticated: bool = True,
 ) -> httpx.Response:
-    """
-    Send an authenticated request to AllRatesToday.
-    """
 
-    if not ALLRATES_API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="AllRatesToday API key is not configured.",
-        )
+    headers = {}
+
+    if authenticated:
+        if not ALLRATES_API_KEY:
+            raise HTTPException(
+                status_code=500,
+                detail="AllRatesToday API key is not configured.",
+            )
+
+        headers["Authorization"] = f"Bearer {ALLRATES_API_KEY}"
 
     url = f"{ALLRATES_BASE_URL}/{endpoint}"
-
-    headers = {
-        "Authorization": f"Bearer {ALLRATES_API_KEY}"
-    }
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -52,6 +50,52 @@ async def make_allrates_request(
             status_code=502,
             detail="Unable to connect to AllRatesToday API.",
         )
+
+
+def handle_allrates_response(response: httpx.Response, format: str = "json"):
+
+    forwarded_headers = {
+        key: response.headers[key]
+        for key in [
+            "X-Monthly-Limit",
+            "X-Monthly-Used",
+            "X-Monthly-Resets",
+        ]
+        if key in response.headers
+    }
+
+    if response.status_code != 200:
+        try:
+            error_data = response.json()
+        except ValueError:
+            error_data = {"detail": response.text}
+
+        return JSONResponse(
+            status_code=response.status_code,
+            content=error_data,
+            headers=forwarded_headers,
+        )
+
+    if format == "json":
+        return JSONResponse(
+            content=response.json(),
+            headers=forwarded_headers,
+        )
+
+    forwarded_headers["Content-Disposition"] = response.headers.get(
+        "Content-Disposition",
+        f"attachment; filename=allrates-response.{format}",
+    )
+
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        media_type=response.headers.get(
+            "Content-Type",
+            "application/octet-stream",
+        ),
+        headers=forwarded_headers,
+    )
 
 
 def handle_allrates_response(response: httpx.Response, format: str = "json"):
