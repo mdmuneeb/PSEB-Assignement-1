@@ -59,12 +59,6 @@ currency-exchange-api/
 git clone https://github.com/mdmuneeb/PSEB-Assignement-1
 ```
 
-Navigate into the project directory:
-
-```bash
-cd currency-exchange-api
-```
-
 ### 2. Create a Virtual Environment
 
 ```bash
